@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0,"/home/parth/Desktop/iot/anomaly_detection/config_folder")  #this folder has the .py file which contains configurations like api_key, phone number, etc.
 import conf, json, time, math, statistics
-from boltiot import Sms, Bolt
+from boltiot import Email, Sms, Bolt
 
 def compute_bounds(history_data,frame_size,factor):
     if len(history_data)<frame_size :
@@ -23,6 +23,7 @@ def compute_bounds(history_data,frame_size,factor):
 mybolt = Bolt(conf.API_KEY, conf.DEVICE_ID)
 sms = Sms(conf.SSID, conf.AUTH_TOKEN, conf.TO_NUMBER, conf.FROM_NUMBER)
 history_data=[]
+mailer = Email(conf.MAILGUN_API_KEY, conf.SANDBOX_URL, conf.SENDER_EMAIL, conf.RECIPIENT_EMAIL)
 
 while True:
     response = mybolt.analogRead('A0') 	#reading the birghtness value returned by the IoT device (LDR) from pin A0
@@ -54,16 +55,24 @@ while True:
 
     try:
         if sensor_value > bound[0] :
-            print ("The light level increased suddenly. Sending an SMS.")
+            print ("The light level increased suddenly. Sending an SMS...")
             response = sms.send_sms("ALERT !! Someone apparently turned on the lights. The light level increased suddenly.")
             print("This is the response from Twilio",str(response))
             print("Status of sms:",str(response.status))
+            print("Now sending email...")
+            response2 = mailer.send_email("ALERT !! Someone apparently turned on the lights. The light level increased suddenly.")
+            response2_text = json.loads(response2.text)
+            print("Response received from Mailgun is: " + str(response2_text['message']))
             
         elif sensor_value < bound[1]:
-            print ("The light level decreased suddenly. Sending an SMS.")
-            response = sms.send_sms("ALERT !! Someone apparently turned off the lights. The light level increased suddenly.")
+            print ("The light level decreased suddenly. Sending an SMS...")
+            response = sms.send_sms("ALERT !! Someone apparently turned off the lights. The light level decreased suddenly.")
             print("This is the response from Twilio",str(response))
             print("Status of sms:",str(response.status))
+            print("Now sending email...")
+            response2 = mailer.send_email("ALERT !! Someone apparently turned off the lights. The light level decreased suddenly.")
+            response2_text = json.loads(response2.text)
+            print("Response received from Mailgun is: " + str(response2_text['message']))
         history_data.append(sensor_value);
     except Exception as e:
         print ("Error",e)
