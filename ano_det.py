@@ -1,6 +1,8 @@
 import sys
-sys.path.insert(0,"/home/parth/Desktop/iot/anomaly_detection/config_folder")  #this folder has the .py file which contains configurations like api_key, phone number, etc.
-import conf, json, time, math, statistics
+# sys.path.append("/home/parth/Desktop/iot/anomaly_detection/config_folder")  #this folder has the .py file which contains configurations like api_key, phone number, etc.
+sys.path.insert(0, '/home/parth/Desktop/miscellaneous/iot/anomaly_detection/config_folder/.')
+import json, time, math, statistics
+from conf import API_KEY,DEVICE_ID,SSID,AUTH_TOKEN,TO_NUMBER,FROM_NUMBER,MAILGUN_API_KEY,SANDBOX_URL,SENDER_EMAIL,RECIPIENT_EMAIL,FRAME_SIZE,MUL_FACTOR
 from boltiot import Email, Sms, Bolt
 
 def compute_bounds(history_data,frame_size,factor):
@@ -20,10 +22,10 @@ def compute_bounds(history_data,frame_size,factor):
     Low_bound = history_data[frame_size-1]-Zn
     return [High_bound,Low_bound]
 
-mybolt = Bolt(conf.API_KEY, conf.DEVICE_ID)
-sms = Sms(conf.SSID, conf.AUTH_TOKEN, conf.TO_NUMBER, conf.FROM_NUMBER)
+mybolt = Bolt(API_KEY(), DEVICE_ID())
+sms = Sms(SSID(), AUTH_TOKEN(), TO_NUMBER(), FROM_NUMBER())
 history_data=[]
-mailer = Email(conf.MAILGUN_API_KEY, conf.SANDBOX_URL, conf.SENDER_EMAIL, conf.RECIPIENT_EMAIL)
+mailer = Email(MAILGUN_API_KEY(), SANDBOX_URL(), SENDER_EMAIL(), RECIPIENT_EMAIL())
 
 while True:
     response = mybolt.analogRead('A0') 	#reading the birghtness value returned by the IoT device (LDR) from pin A0
@@ -44,37 +46,53 @@ while True:
         print()
         continue
 
-    bound = compute_bounds(history_data,conf.FRAME_SIZE,conf.MUL_FACTOR)
+    bound = compute_bounds(history_data,FRAME_SIZE(),MUL_FACTOR())
     if not bound:
-        required_data_count=conf.FRAME_SIZE-len(history_data)
+        required_data_count=FRAME_SIZE()-len(history_data)
         print("Not enough data to compute Z-score. Need ",required_data_count," more data points")
         print()
         history_data.append(int(data['value']))
         time.sleep(5)	#will collect data next time after 5 seconds
         continue
 
-    try:
-        if sensor_value > bound[0] :
+    if sensor_value > bound[0] :
+        try:
             print ("The light level increased suddenly. Sending an SMS...")
             response = sms.send_sms("ALERT !! Someone apparently turned on the lights. The light level increased suddenly.")
             print("This is the response from Twilio",str(response))
             print("Status of sms:",str(response.status))
+        except:
+            print("Encountered error while sending SMS.....")
+        print()
+        try:
             print("Now sending email...")
-            response2 = mailer.send_email("ALERT !! Someone apparently turned on the lights. The light level increased suddenly.")
+            response2 = mailer.send_email("ALERT !!","Someone apparently turned on the lights. The light level increased suddenly.")
             response2_text = json.loads(response2.text)
             print("Response received from Mailgun is: " + str(response2_text['message']))
-            
-        elif sensor_value < bound[1]:
+        except:
+            print("Encountered error while sending email.....")
+        print()
+    elif sensor_value < bound[1]:
+        try:
             print ("The light level decreased suddenly. Sending an SMS...")
             response = sms.send_sms("ALERT !! Someone apparently turned off the lights. The light level decreased suddenly.")
             print("This is the response from Twilio",str(response))
             print("Status of sms:",str(response.status))
+        except Exception as e:
+            print("Encountered error while sending SMS.....")
+            print ("Error",e)
+        print()
+        try:
             print("Now sending email...")
-            response2 = mailer.send_email("ALERT !! Someone apparently turned off the lights. The light level decreased suddenly.")
+            response2 = mailer.send_email("ALERT !!","Someone apparently turned off the lights. The light level decreased suddenly.")
             response2_text = json.loads(response2.text)
             print("Response received from Mailgun is: " + str(response2_text['message']))
-        history_data.append(sensor_value);
-    except Exception as e:
-        print ("Error",e)
-    print()
+        except Exception as e:
+            print("Encountered error while sending email.....")
+            print ("Error",e)
+            print()
+    else:
+        print()
+    history_data.append(sensor_value)
+    # print()
     time.sleep(10)   #will collect data next time after 10 seconds
