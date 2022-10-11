@@ -4,3 +4,9 @@ Requirements:
 2. Light Dependent Resistor which will respond to the light in its surroundings.
 3. An account and all necessary configuration details on "Twilio" for free SMS alerts.
 4. An account and all necessary configuration details on "Mailgun" for free email alerts.
+5. The file structure is like:
+
+
+![Screenshot from 2022-10-11 14-56-59](https://user-images.githubusercontent.com/100679824/195052763-d3a8643e-6c50-4c9d-af30-d9511339dfd2.png)
+ 
+ where conf.py contains all the necessary configuration details
